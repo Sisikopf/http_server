@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #define THREAD_COUNT 5
+int i =0;
 void headers(int client, int size, int httpcode, char *contentType) {
 	char buf[1024];
 	char strsize[20];
@@ -78,6 +79,7 @@ int setContentType(char *filepath, char **contentType) {
     else return NULL;
 }
 void *handleClient(void *arg) {
+	i++;
     int filesize = 0;
     char *line = NULL;
     size_t len = 0;
@@ -90,7 +92,7 @@ void *handleClient(void *arg) {
 	int cd = *((int *)arg);
 
 	int empty_str_count = 0;
-    printf("In new thread\n");
+    printf("In thread #%d\n", i);
     fd = fdopen(cd, "r");
     if (fd == NULL) {
         printf("error open client descriptor as file \n");
@@ -116,7 +118,7 @@ void *handleClient(void *arg) {
     if (file == NULL) {
         printf("404 File Not Found \n");
         headers(cd, 0, 404, contentType);
-    }
+    } 
     else if (file!=NULL && setContentType(filepath, &contentType)==NULL)
     {
         printf("500 Internal Server Error \n");
@@ -128,14 +130,17 @@ void *handleClient(void *arg) {
         fseek(file, 0L, SEEK_SET);
         printf("%s", contentType);
         headers(cd, filesize, 200, contentType);
-        unsigned char buf[filesize];
-        int n = fread(buf,filesize,1,file);
-        if(n==0)
-            printf("Read file Error");
-        res = send(cd, buf, filesize, 0);
-        if (res == -1) {
-            printf("send error \n");
-        }
+        unsigned char buf[1024];
+		int bytes = 0;
+		while((bytes=fread(buf,1,1024,file))>0) {
+		    //int n = fread(buf,filesize,1,file);
+		    //if(n==0)
+		    //    printf("Read file Error");
+		    res = send(cd, buf, 1024, 0);
+		    if (res == -1) {
+		        printf("send error \n");
+		    }
+		}		
     }
     close(cd);
     return (void*)0;
@@ -177,7 +182,6 @@ int main() {
 		}
         printf("client in %d descriptor. Client addr is %d \n", cd, caddr.sin_addr.s_addr);
 		int err = pthread_create(&ntid[i], NULL, &handleClient, &cd);
-		i++;
 		if (err != 0) {
 			printf("it's impossible to create a thread %s\n", strerror(err));
 		}
