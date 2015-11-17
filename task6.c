@@ -6,7 +6,7 @@
 #define THREAD_COUNT 100
 
 pthread_t ntid[THREAD_COUNT];
-
+int i =0;
 void headers(int client, int size, int httpcode, char *contentType) {
 	char buf[1024];
 	char strsize[20];
@@ -80,8 +80,7 @@ int setContentType(char *filepath, char **contentType) {
     }
     else return NULL;
 }
-void *handleClient(void *arg) {
-	i++;    
+void *handleClient(void *arg) {   
 	int filesize = 0;
     char *line = NULL;
     size_t len = 0;
@@ -150,11 +149,10 @@ void *handleClient(void *arg) {
     return (void*)0;
 }
 void createThread(int cd) {
-	printf("before malloc");
 	int *k = (int*) malloc(sizeof(int));
 	*k = cd; 
-	printf("In createThread k=%d", *k);
-	int err = pthread_create(NULL, NULL, &handleClient, &cd);
+	i++; 
+	int err = pthread_create(&ntid[i], NULL, &handleClient, k);
 	if (err != 0) {
 		printf("it's impossible to create a thread %s\n", strerror(err));
 	}
@@ -178,7 +176,7 @@ int main() {
 		printf("listener create error \n");
 	}
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(8070);
+	saddr.sin_port = htons(8080);
 	saddr.sin_addr.s_addr = INADDR_ANY;
 	res = bind(ld, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (res == -1) {
@@ -194,7 +192,7 @@ int main() {
 			printf("accept error \n");
 		}
 		printf("client in %d descriptor. Client addr is %d \n", cd, caddr.sin_addr.s_addr);
-		//createThread(cd);
+		createThread(cd);
 	}
 	return 0;
 }
