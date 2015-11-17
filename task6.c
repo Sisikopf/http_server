@@ -3,8 +3,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
-#define THREAD_COUNT 5
-int i =0;
+#define THREAD_COUNT 100
+
+pthread_t ntid[THREAD_COUNT];
+
 void headers(int client, int size, int httpcode, char *contentType) {
 	char buf[1024];
 	char strsize[20];
@@ -79,8 +81,8 @@ int setContentType(char *filepath, char **contentType) {
     else return NULL;
 }
 void *handleClient(void *arg) {
-	i++;
-    int filesize = 0;
+	i++;    
+	int filesize = 0;
     char *line = NULL;
     size_t len = 0;
     char *filepath = NULL;
@@ -90,13 +92,13 @@ void *handleClient(void *arg) {
 	FILE *file;
 	char *contentType = (char*) malloc(255*sizeof(char));
 	int cd = *((int *)arg);
-
 	int empty_str_count = 0;
-    printf("In thread #%d\n", i);
+    printf("In thread #%d cd =%d\n", i,cd);
     fd = fdopen(cd, "r");
     if (fd == NULL) {
         printf("error open client descriptor as file \n");
     }
+	printf("In thread #%d: after fdopen\n", i);
     while ((res = getline(&line, &len, fd)) != -1) {
         if (strstr(line, "GET")) {
             parseFileName(line, &filepath, &filepath_len);
@@ -112,9 +114,10 @@ void *handleClient(void *arg) {
         }
         printf("%s", line);
     }
-    printf("open %s \n", filepath);
+    printf("In thread #%d: open %s \n", i,filepath);
 
     file = fopen(filepath, "rb");
+	printf("In thread #%d: after fopen\n", i);
     if (file == NULL) {
         printf("404 File Not Found \n");
         headers(cd, 0, 404, contentType);
@@ -142,18 +145,28 @@ void *handleClient(void *arg) {
 		    }
 		}		
     }
+	free(arg);
     close(cd);
     return (void*)0;
+}
+void createThread(int cd) {
+	printf("before malloc");
+	int *k = (int*) malloc(sizeof(int));
+	*k = cd; 
+	printf("In createThread k=%d", *k);
+	int err = pthread_create(NULL, NULL, &handleClient, &cd);
+	if (err != 0) {
+		printf("it's impossible to create a thread %s\n", strerror(err));
+	}
 }
 int main() {
 	int ld = 0;
 	int res = 0;
-	int cd = 0;
-    int i = 0;
+	int cd = 0; 
+	int lastcd = 0;
 	const int backlog = 10;
 	struct sockaddr_in saddr;
 	struct sockaddr_in caddr;
-	pthread_t ntid[THREAD_COUNT];
 
 
 	socklen_t size_saddr;
@@ -165,7 +178,7 @@ int main() {
 		printf("listener create error \n");
 	}
 	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(8086);
+	saddr.sin_port = htons(8070);
 	saddr.sin_addr.s_addr = INADDR_ANY;
 	res = bind(ld, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (res == -1) {
@@ -180,12 +193,8 @@ int main() {
 		if (cd == -1) {
 			printf("accept error \n");
 		}
-        printf("client in %d descriptor. Client addr is %d \n", cd, caddr.sin_addr.s_addr);
-		int err = pthread_create(&ntid[i], NULL, &handleClient, &cd);
-		if (err != 0) {
-			printf("it's impossible to create a thread %s\n", strerror(err));
-		}
-
+		printf("client in %d descriptor. Client addr is %d \n", cd, caddr.sin_addr.s_addr);
+		//createThread(cd);
 	}
 	return 0;
 }
