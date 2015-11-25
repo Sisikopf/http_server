@@ -80,24 +80,24 @@ int setContentType(char *filepath, char **contentType) {
     }
     else return NULL;
 }
-void *handleClient(void *arg) {   
+void *handleClient(void *arg) {
 	int filesize = 0;
-    char *line = NULL;
-    size_t len = 0;
-    char *filepath = NULL;
+  char *line = NULL;
+  size_t len = 0;
+  char *filepath = NULL;
 	size_t filepath_len = 0;
 	int res = 0;
-    FILE *fd;
+  FILE *fd;
 	FILE *file;
 	char *contentType = (char*) malloc(255*sizeof(char));
 	int cd = *((int *)arg);
 	int empty_str_count = 0;
-    printf("In thread #%d cd =%d\n", i,cd);
+    printf("In thread cd =%d\n",cd);
     fd = fdopen(cd, "r");
     if (fd == NULL) {
         printf("error open client descriptor as file \n");
     }
-	printf("In thread #%d: after fdopen\n", i);
+	printf("In thread: after fdopen\n");
     while ((res = getline(&line, &len, fd)) != -1) {
         if (strstr(line, "GET")) {
             parseFileName(line, &filepath, &filepath_len);
@@ -113,14 +113,14 @@ void *handleClient(void *arg) {
         }
         printf("%s", line);
     }
-    printf("In thread #%d: open %s \n", i,filepath);
+    printf("In thread: open %s \n",filepath);
 
     file = fopen(filepath, "rb");
-	printf("In thread #%d: after fopen\n", i);
+	printf("In thread: after fopen\n");
     if (file == NULL) {
         printf("404 File Not Found \n");
         headers(cd, 0, 404, contentType);
-    } 
+    }
     else if (file!=NULL && setContentType(filepath, &contentType)==NULL)
     {
         printf("500 Internal Server Error \n");
@@ -133,16 +133,13 @@ void *handleClient(void *arg) {
         printf("%s", contentType);
         headers(cd, filesize, 200, contentType);
         unsigned char buf[1024];
-		int bytes = 0;
-		while((bytes=fread(buf,1,1024,file))>0) {
-		    //int n = fread(buf,filesize,1,file);
-		    //if(n==0)
-		    //    printf("Read file Error");
-		    res = send(cd, buf, 1024, 0);
-		    if (res == -1) {
-		        printf("send error \n");
-		    }
-		}		
+				int bytes = 0;
+				while((bytes=fread(buf,1,1024,file))>0) {
+				    res = send(cd, buf, 1024, 0);
+				    if (res == -1) {
+				        printf("send error \n");
+				    }
+				}
     }
 	free(arg);
     close(cd);
@@ -150,9 +147,10 @@ void *handleClient(void *arg) {
 }
 void createThread(int cd) {
 	int *k = (int*) malloc(sizeof(int));
-	*k = cd; 
-	i++; 
-	int err = pthread_create(&ntid[i], NULL, &handleClient, k);
+	*k = cd;
+	if(i>=100)
+		i=0;
+	int err = pthread_create(&ntid[++i], NULL, &handleClient, k);
 	if (err != 0) {
 		printf("it's impossible to create a thread %s\n", strerror(err));
 	}
@@ -160,7 +158,7 @@ void createThread(int cd) {
 int main() {
 	int ld = 0;
 	int res = 0;
-	int cd = 0; 
+	int cd = 0;
 	int lastcd = 0;
 	const int backlog = 10;
 	struct sockaddr_in saddr;
@@ -196,4 +194,3 @@ int main() {
 	}
 	return 0;
 }
-
